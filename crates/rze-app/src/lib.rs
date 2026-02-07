@@ -1,14 +1,9 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! rze-app: use-cases and ports (traits).
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod factories;
+pub mod ports;
+pub mod usecase_apply;
+pub mod usecase_env;
+pub mod usecase_img;
+pub mod usecase_init;
+pub mod usecase_wallhaven;

@@ -18,6 +18,9 @@ init:
 test:
   cargo test --workspace
 
+cov:
+  cargo llvm-cov --workspace --fail-under-lines 80
+
 fmt:
   cargo fmt --all
 

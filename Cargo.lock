@@ -147,6 +147,7 @@ dependencies = [
  "anyhow",
  "clap",
  "rze-app",
+ "rze-core",
  "rze-infra",
 ]
 
@@ -163,6 +164,7 @@ name = "rze-infra"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "rze-core",
 ]
 
 [[package]]

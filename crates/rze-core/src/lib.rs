@@ -1,14 +1,9 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! rze-core: pure domain logic (no OS access).
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod color;
+pub mod palette;
+pub mod quantize_mediancut;
+pub mod roles;
+pub mod state;
+pub mod template_context;
+pub mod template_engine;

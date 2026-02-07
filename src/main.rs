@@ -1,3 +1,8 @@
+mod args;
+mod output;
+mod wiring;
+
 fn main() {
-    println!("Hello, world!");
+    // Implementation comes later. This crate is currently scaffolding.
+    println!("rze: scaffolding (no implementation yet)");
 }

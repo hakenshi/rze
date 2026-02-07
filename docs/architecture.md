@@ -1,47 +1,97 @@
 # Architecture (Implementer Notes)
 
-This project uses a lightweight clean-architecture/DDD split:
+This document explains how `rze` is structured so the code stays plug-and-play:
+change one subsystem without breaking the rest.
 
-- `rze-core`: pure domain logic and value objects. No OS access.
-- `rze-app`: use-cases (pipelines) + port traits + explicit factories.
-- `rze-infra`: adapters for OS boundaries (ffmpeg, cosmic-config, filesystem, process runner, resets).
-- root crate (`rze`): clap CLI + wiring + output formatting.
+## Crates
+
+- `rze-core`
+  - Pure domain logic and value objects.
+  - Must not touch filesystem, processes, environment variables, or IPC.
+  - Owns: `Color`, `Palette16`, `Roles`, quantization, role assignment, template engine.
+
+- `rze-app`
+  - Use-cases/pipelines and port traits.
+  - Must not do OS work directly.
+  - Owns: `ImgUseCase`, `ApplyUseCase`, `InitUseCase`, `EnvUseCase`.
+  - Owns: explicit factories that select implementations based on environment/config.
+
+- `rze-infra`
+  - Adapters for OS boundaries.
+  - Owns: process runner, ffmpeg decoder, curl downloader, atomic writes, symlinks, cosmic-config edits, reset actions.
+
+- root crate (`rze`)
+  - CLI parsing (clap), wiring (construct use-cases from infra), output formatting.
+  - One-line error by default; verbose with `RZE_DEBUG=1`.
 
 ## Dependency rules
 
-- `rze-core` must not depend on filesystem, processes, DE detection, or IPC.
-- `rze-app` depends on `rze-core` and traits only.
-- `rze-infra` implements the traits and may use OS features.
-- CLI wires everything together.
+- `rze-core` depends on std only.
+- `rze-app` depends on `rze-core` and traits (ports). It may depend on `anyhow` for error context.
+- `rze-infra` depends on `rze-core` and implements `rze-app` ports.
+- root crate wires everything together.
 
-## Port traits (high-level)
+Rule of thumb: all OS behavior should be reachable by searching for a port impl in `rze-infra`.
 
-We keep traits only at true variability points:
+## Ports (traits)
 
-- Wallpaper backend (COSMIC-native vs nayu vs later GNOME/KDE/X11)
-- Input resolver (local path vs URL)
-- Pixel decoder (ffmpeg)
-- State store (atomic write)
-- Template service (render -> cache -> deploy symlinks)
-- Reset actions (cava/dunst/waybar/kitty/ghostty)
+Ports exist only at variability points.
+
+- `WallpaperBackend`
+  - `set_wallpaper(path)` sets wallpaper for the current session.
+  - Implementations:
+    - COSMIC backend (native cosmic-config edits)
+    - nayu backend (calls `nayu set`)
+    - GNOME/KDE/X11 backends later
+
+- `InputResolver`
+  - resolves `path-or-url` into a verified local file path.
+  - local input: must exist and be ffmpeg-decodable.
+  - url input: download -> verify by decoding.
+
+- `PixelDecoder`
+  - decodes pixels from a local image using ffmpeg (scaled down for palette generation).
+
+- `StateStore`
+  - reads/writes `$RZE_CACHE/state.json` atomically.
+
+- `TemplateService`
+  - renders template packs into `$RZE_CACHE/out/<target>/...`.
+  - deploys symlinks into `~/.config/...`.
+
+- `ResetAction` / `ResetRunner`
+  - reload/restart external programs after theme updates.
+  - gated by `--no-reset`.
 
 ## Wallpaper backend selection
 
-Selection is explicit and primarily driven by `XDG_CURRENT_DESKTOP`:
+Selection is explicit, driven primarily by `XDG_CURRENT_DESKTOP`.
 
-- COSMIC => cosmic-config backend (force same-on-all)
-- else Wayland => `nayu set`
-- else X11 => (later) X11 backend
+Default order (configurable):
 
-We allow an override flag for debugging.
+1. COSMIC -> COSMIC backend (native, forces same-on-all)
+2. otherwise, if Wayland -> `nayu set`
+3. otherwise, if X11 -> (later) X11 backend (or use nayu-x11)
+
+We provide a CLI override flag for debugging and for users that intentionally want non-default behavior.
 
 ## Template packs
 
-Default templates are installed to `/usr/share/rze/templates`.
+### Sources
 
-At runtime we materialize user templates into `~/.config/rze/templates` if missing/empty:
+Default packs are installed to `/usr/share/rze/templates`.
+
+At runtime, `rze` materializes user templates into `~/.config/rze/templates` if missing/empty.
+The source search order is:
 
 1. `$XDG_DATA_HOME/rze/templates` (optional override)
 2. `/usr/share/rze/templates`
 
 User templates always win.
+
+### Outputs
+
+Templates are rendered into `$RZE_CACHE/out/<target>/...`.
+Deployed symlinks are created in app-specific `rze` namespaces (never overwrite main configs).
+
+The mapping of target -> output path -> deploy path is a stable contract and is documented in `docs/integrations.md`.

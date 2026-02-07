@@ -1,0 +1,18 @@
+[package]
+name = "rze"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = [
+  "crates/rze-core",
+  "crates/rze-app",
+  "crates/rze-infra",
+]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+
+rze-app = { path = "crates/rze-app" }
+rze-infra = { path = "crates/rze-infra" }

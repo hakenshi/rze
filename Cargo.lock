@@ -161,6 +161,9 @@ version = "0.1.0"
 [[package]]
 name = "rze-infra"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+]
 
 [[package]]
 name = "strsim"
